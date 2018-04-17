@@ -72,4 +72,20 @@ class TagCrudController extends CrudController
 
         return redirect()->route('crud.tag.index');
     }
+
+    public function edit($id){
+        $user = Auth::user();
+
+        if(!$user->hasRole('Author')) return parent::edit($id);
+        \Alert::warning('Bạn không thể chỉnh sửa tag')->flash();
+        return redirect()->route('crud.tag.index');
+    }
+
+    public function destroy($id){
+        $user = Auth::user();
+
+        if(!$user->hasRole('Author')) return parent::destroy($id);
+        \Alert::warning('Bạn không thể xóa tag')->flash();
+        return redirect()->route('crud.tag.index');
+    }
 }

@@ -89,4 +89,20 @@ class CategoryCrudController extends CrudController
         \Alert::warning('Bạn không có quyền sử dụng tính năng này')->flash();
         return redirect()->route('crud.category.index');
     }
+
+    public function edit($id){
+        $user = Auth::user();
+
+        if(!$user->hasRole('Author')) return parent::edit($id);
+        \Alert::warning('Bạn không thể chỉnh sửa danh mục')->flash();
+        return redirect()->route('crud.category.index');
+    }
+
+    public function destroy($id){
+        $user = Auth::user();
+
+        if(!$user->hasRole('Author')) return parent::destroy($id);
+        \Alert::warning('Bạn không thể xóa danh mục')->flash();
+        return redirect()->route('crud.category.index');
+    }
 }
