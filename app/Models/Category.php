@@ -101,4 +101,27 @@ class Category extends Model
     | MUTATORS
     |--------------------------------------------------------------------------
     */
+
+    public function getName(){
+        $start_string = '';
+
+        for($i = 1; $i < $this->depth; $i++) $start_string .= '-';
+
+        return $start_string.' '.$this->name;
+    }
+
+    public function canHaveParent($id){
+        $cur_id = $id;
+
+        do{
+            $cate = self::find($cur_id);
+            $parent_id = $cate->parent_id;
+
+            if($parent_id == $this->id) return false;
+
+            $cur_id = $parent_id;
+        }while($cur_id != null);
+
+        return true;
+    }
 }

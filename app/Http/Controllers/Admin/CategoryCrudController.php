@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\Category;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 // VALIDATION: change the requests to match your own file names if you need form validation
 use App\Http\Requests\CategoryRequest as StoreRequest;
 use App\Http\Requests\CategoryRequest as UpdateRequest;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class CategoryCrudController extends CrudController
@@ -36,6 +38,8 @@ class CategoryCrudController extends CrudController
         $this->crud->addColumn([
                                 'name' => 'name',
                                 'label' => 'Name',
+                                'type' => 'model_function',
+                                'function_name' => 'getName',
                             ]);
         $this->crud->addColumn([
                                 'name' => 'slug',
@@ -74,12 +78,85 @@ class CategoryCrudController extends CrudController
 
     public function store(StoreRequest $request)
     {
-        return parent::storeCrud();
+        $this->crud->hasAccessOrFail('create');
+
+        // fallback to global request instance
+        if (is_null($request)) {
+            $request = \Request::instance();
+        }
+
+        // replace empty values with NULL, so that it will work with MySQL strict mode on
+        foreach ($request->input() as $key => $value) {
+            if (empty($value) && $value !== '0') {
+                $request->request->set($key, null);
+            }
+        }
+
+        // insert item in the db
+        $item = $this->crud->create($request->except(['save_action', '_token', '_method']));
+
+        if(!$item->canHaveParent($request->parent_id)){
+            \Alert::warning('Quan hệ cha con không hợp lệ')->flash();
+            return redirect()->route('crud.category.index');
+        }
+
+        $this->data['entry'] = $this->crud->entry = $item;
+
+        // show a success message
+        \Alert::success(trans('backpack::crud.insert_success'))->flash();
+
+        // save the redirect choice for next time
+        $this->setSaveAction();
+
+        return $this->performSaveAction($item->getKey());
     }
 
     public function update(UpdateRequest $request)
     {
-        return parent::updateCrud();
+        $this->crud->hasAccessOrFail('update');
+
+        // fallback to global request instance
+        if (is_null($request)) {
+            $request = \Request::instance();
+        }
+
+        // replace empty values with NULL, so that it will work with MySQL strict mode on
+        foreach ($request->input() as $key => $value) {
+            if (empty($value) && $value !== '0') {
+                $request->request->set($key, null);
+            }
+        }
+
+        $item = Category::find($request->get($this->crud->model->getKeyName()));
+
+        if(!$item->canHaveParent($request->parent_id)){
+            \Alert::warning('Quan hệ cha con không hợp lệ')->flash();
+            return redirect()->route('crud.category.index');
+        }
+
+        // update the row in the db
+        $item = $this->crud->update($request->get($this->crud->model->getKeyName()),
+            $request->except('save_action', '_token', '_method'));
+        $this->data['entry'] = $this->crud->entry = $item;
+
+        // show a success message
+        \Alert::success(trans('backpack::crud.update_success'))->flash();
+
+        // save the redirect choice for next time
+        $this->setSaveAction();
+
+        return $this->performSaveAction($item->getKey());
+    }
+
+    public function index()
+    {
+        $this->crud->hasAccessOrFail('list');
+
+        $this->data['crud'] = $this->crud;
+        $this->data['title'] = ucfirst($this->crud->entity_name_plural);
+
+        // load the view from /resources/views/vendor/backpack/crud/ if it exists, otherwise load the one in the package
+        return view($this->crud->getListView(), $this->data);
     }
 
     public function create(){
